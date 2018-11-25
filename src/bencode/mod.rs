@@ -49,7 +49,7 @@ impl PartialEq for BCObject {
     }
 }
 
-type PeekableCharIterator<'a> = std::iter::Peekable<std::str::Chars<'a>>;
+type PeekableCharIterator<'a> = ::std::iter::Peekable<std::str::Chars<'a>>;
 
 impl BCObject {
     fn parse_dictionary(iter: &mut PeekableCharIterator) -> Result<Self, String> {
