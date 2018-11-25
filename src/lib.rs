@@ -1,15 +1,27 @@
-#![cfg_attr(feature = "cargo-clippy", deny(pedantic))]
+/*
+ *  This Source Code Form is subject to the terms of the Mozilla Public
+ *  License, v. 2.0. If a copy of the MPL was not distributed with this
+ *  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+
+//! Oxidant is a general-purpose library for the Oxidation project and all
+//! associated projects with it. It contains some basic code that each project
+//! in the rust ecosystem around it (i.e. `oxidation` itself and `oxi`) need
+//! in order to run properly. It also provides some handy baseline code for
+//! possible translation into other languages. 
 
 extern crate json;
 
 use std::error::Error;
+
+pub mod bencode;
 
 #[derive(Debug)]
 pub enum Command {
     Test,
     HealthCheck,
     Echo(String),
-    Add(i32, i32)
+    Add(i32, i32),
 }
 
 impl PartialEq for Command {
@@ -36,17 +48,17 @@ impl Command {
                     let a = match iter.next() {
                         Some(s) => match s.parse::<i32>() {
                             Ok(i) => i,
-                            Err(e) => return Err(e.to_string())
+                            Err(e) => return Err(e.to_string()),
                         },
-                        None => return Err("a was not present".to_string())
+                        None => return Err("a was not present".to_string()),
                     };
 
                     let b = match iter.next() {
                         Some(s) => match s.parse::<i32>() {
                             Ok(i) => i,
-                            Err(e) => return Err(e.to_string())
+                            Err(e) => return Err(e.to_string()),
                         },
-                        None => return Err("a was not present".to_string())
+                        None => return Err("b was not present".to_string()),
                     };
                     Ok(Command::Add(a, b))
                 }
@@ -62,7 +74,7 @@ impl Command {
             Command::Test => "test",
             Command::HealthCheck => "health_check",
             Command::Echo(_) => "echo",
-            Command::Add(_, _) => "add"
+            Command::Add(_, _) => "add",
         }.to_string()
     }
 
@@ -101,14 +113,12 @@ impl Command {
                         Some(a) => Ok(Command::Echo(a.to_string())),
                         None => Err("bad echo - no key `echoed`".to_string()),
                     },
-                    "add" => {
-                        let a = cmd_parsed["a"].as_i32();
-                        let b = cmd_parsed["b"].as_i32();
-                        if a.is_none() || b.is_none() {
-                            return Err("missing argument(s)".to_string());
-                        }
-                        Ok(Command::Add(a.expect("a was not i32"), b.expect("b was not i32")))
-                    }
+                    "add" => match (cmd_parsed["a"].as_i32(), cmd_parsed["b"].as_i32()) {
+                        (Some(a), Some(b)) => Ok(Command::Add(a, b)),
+                        (None, None) => Err("missing arguments `a` and `b`".to_string()),
+                        (None, _) => Err("missing argument `a`".to_string()),
+                        (_, None) => Err("missing argument `b`".to_string()),
+                    },
                     _ => Err("bad command".to_string()),
                 };
             }
@@ -127,16 +137,22 @@ mod tests {
     }
 
     #[test]
-    fn test_parse() {
+    fn test_parse_command() {
         let test = stringify_vec(vec!["test"]);
         assert_eq!(Command::Test, Command::parse(&test).expect("Not test"));
+    }
 
+    #[test]
+    fn test_parse_command_with_args() {
         let echo = stringify_vec(vec!["echo", "1", "2", "3"]);
         assert_eq!(
             Command::Echo("1 2 3".to_string()),
             Command::parse(&echo).expect("Not echo")
         );
+    }
 
+    #[test]
+    fn test_parse_empty_command() {
         let nothing: Vec<String> = Vec::new();
         assert!(Command::parse(&nothing).is_err());
     }
